@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -112,36 +111,46 @@ void proxy_destroy(proxy_t *proxy) {
     }
 }
 
+#define HOSTNAME_MAX 1024
+
 typedef struct {
-    char *remote_host;
+    char remote_host[HOSTNAME_MAX];
     in_port_t remote_port;
     in_port_t local_port;
 } args_t;
 
 int parse_args(int argc, char **argv, args_t *args) {
-    args->remote_host = NULL;
     args->remote_port = 0;
     args->local_port = 0;
 
-    if (argc != 4) {
-        fprintf(stderr,
-                "Usage: %s <remote host> <remote port> "
-                "<local port>\n",
-                argv[0]);
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <config>\n", argv[0]);
         return 1;
     }
-    args->remote_host = argv[1];
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open host file");
+        return 1;
+    }
+
+    if (fscanf(file, "%1023s %hu %hu", args->remote_host, &args->remote_port,
+               &args->local_port) != 3) {
+        fprintf(stderr, "Failed to read host file\n");
+        return 1;
+    }
+
+    if (fclose(file)) {
+        perror("Failed to close host file");
+    }
+
     const int port_min = 1;
     const int port_max = 65535;
-    errno = 0;
-    args->remote_port = atoi(argv[2]);
-    if (errno || args->remote_port < port_min || args->remote_port > port_max) {
+    if (args->remote_port < port_min || args->remote_port > port_max) {
         fprintf(stderr, "Remote port must be a number between 1 and 65535.\n");
         return 1;
     }
-    errno = 0;
-    args->local_port = atoi(argv[3]);
-    if (errno || args->local_port < port_min || args->local_port > port_max) {
+    if (args->local_port < port_min || args->local_port > port_max) {
         fprintf(stderr, "Local port must be a number between 1 and 65535.\n");
         return 1;
     }

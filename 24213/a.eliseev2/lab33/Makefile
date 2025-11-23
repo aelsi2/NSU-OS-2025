@@ -2,5 +2,5 @@ CC = gcc
 LDLIBS = -lsocket -lnsl
 CFLAGS = -O2 -Wall
 
-proxy.out: proxy.c
+java: proxy.c
 	$(LINK.c) -o $@ $(LDLIBS) $^
